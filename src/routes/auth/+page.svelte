@@ -23,7 +23,7 @@
 			toast.success($i18n.t(`You're now logged in.`));
 			localStorage.token = sessionUser.token;
 			await user.set(sessionUser);
-			goto('/');
+			goto('/mainPage');
 		}
 	};
 
@@ -57,7 +57,7 @@
 
 	onMount(async () => {
 		if ($user !== undefined) {
-			await goto('/');
+			await goto('/mainPage');
 		}
 		loaded = true;
 		if (($config?.features.auth_trusted_header ?? false) || $config?.features.auth === false) {
