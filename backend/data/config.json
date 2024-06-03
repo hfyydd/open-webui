@@ -32,5 +32,20 @@
 				"content": "\u6211\u53d1\u751f\u4e86\u4ea4\u901a\u4e8b\u6545\uff0c\u5bf9\u65b9\u5168\u8d23\uff0c\u4f46\u5bf9\u65b9\u4e0d\u8d54\u507f\u600e\u4e48\u529e\uff1f"
 			}
 		]
+	},
+	"ollama": {
+		"base_urls": [
+			"http://localhost:11434"
+		]
+	},
+	"openai": {
+		"api_base_urls": [
+			"http://10.192.128.18:6789/v1",
+			"http://127.0.0.1:8100/v2"
+		],
+		"api_keys": [
+			"123456",
+			"123456"
+		]
 	}
 }
