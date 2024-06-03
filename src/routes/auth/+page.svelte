@@ -73,7 +73,12 @@
 </svelte:head>
 
 {#if loaded}
-	<div class="fixed m-10 z-50">
+<div class="video-background">
+	<video playsinline="playsinline" autoplay="autoplay" muted="muted" loop="loop">
+		<source src="/assets/background.mp4" type="video/mp4" />
+	</video>
+	<div class="content">
+	<!-- <div class="fixed m-10 z-50">
 		<div class="flex space-x-2">
 			<div class=" self-center">
 				<img
@@ -84,9 +89,9 @@
 				/>
 			</div>
 		</div>
-	</div>
+	</div> -->
 
-	<div class=" bg-white dark:bg-gray-950 min-h-screen w-full flex justify-center font-mona">
+	<div class="min-h-screen w-full flex justify-center font-mona">
 		<!-- <div class="hidden lg:flex lg:flex-1 px-10 md:px-16 w-full bg-yellow-50 justify-center">
 			<div class=" my-auto pb-16 text-left">
 				<div>
@@ -100,17 +105,19 @@
 				</div>
 			</div>
 		</div> -->
-
+		<div class="flex flex-col items-center space-y-5 mt-2">
+			<div class="centered-text">黑龙江省公共法律服务<br />大模型</div>
+		</div>
 		<div class="w-full sm:max-w-md px-10 min-h-screen flex flex-col text-center">
 			{#if ($config?.features.auth_trusted_header ?? false) || $config?.features.auth === false}
 				<div class=" my-auto pb-10 w-full">
 					<div
-						class="flex items-center justify-center gap-3 text-xl sm:text-2xl text-center font-bold dark:text-gray-200"
+						class="flex items-center justify-center gap-3 text-xl sm:text-2xl text-center font-bold text-gray-200"
 					>
 						<div>
 							{$i18n.t('Signing in')}
-							{$i18n.t('to')}
-							{$WEBUI_NAME}
+							<!-- {$i18n.t('to')}
+							{$WEBUI_NAME} -->
 						</div>
 
 						<div>
@@ -119,7 +126,7 @@
 					</div>
 				</div>
 			{:else}
-				<div class="  my-auto pb-10 w-full dark:text-gray-100">
+				<div class="  my-auto pb-10 w-full text-gray-100">
 					<form
 						class=" flex flex-col justify-center"
 						on:submit|preventDefault={() => {
@@ -129,8 +136,8 @@
 						<div class="mb-1">
 							<div class=" text-2xl font-bold">
 								{mode === 'signin' ? $i18n.t('Sign in') : $i18n.t('Sign up')}
-								{$i18n.t('to')}
-								{$WEBUI_NAME}
+								<!-- {$i18n.t('to')}
+								{$WEBUI_NAME} -->
 							</div>
 
 							{#if mode === 'signup'}
@@ -221,6 +228,8 @@
 			{/if}
 		</div>
 	</div>
+	</div>
+</div>
 {/if}
 
 <style>
@@ -228,5 +237,57 @@
 		font-family: 'Mona Sans', -apple-system, 'Arimo', ui-sans-serif, system-ui, 'Segoe UI', Roboto,
 			Ubuntu, Cantarell, 'Noto Sans', sans-serif, 'Helvetica Neue', Arial, 'Apple Color Emoji',
 			'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+	}
+
+	.centered-text {
+		position: absolute; /* 绝对定位 */
+		top: 15%; /* 顶部偏移50% */
+		left: 50%; /* 左侧偏移50% */
+		transform: translate(-50%, -50%); /* 用于居中 */
+		transition: transform 0.5s ease-in-out;
+		text-align: center; /* 字体居中 */
+		font-size: 4em; /* 字体大小 */
+		font-weight: bold; /* 字体粗细 */
+		background: linear-gradient(105deg, #d16ba5, #86a8e7, #5ffbf1, #86a8e7, #d16ba5); /* 渐变色 */
+		background-size: 200% 200%;
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		animation: gradient 3s ease infinite;
+	}
+	.video-background {
+		position: relative;
+		width: 100%;
+		height: 100%;
+		overflow: hidden;
+	}
+
+	.video-background video {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		min-width: 100%;
+		min-height: 100%;
+		width: auto;
+		height: auto;
+		z-index: 0;
+		transform: translate(-50%, -50%);
+		object-fit: cover;
+	}
+
+	.content {
+		position: relative;
+		z-index: 1;
+	}
+
+	@keyframes gradient {
+		0% {
+			background-position: 0% 50%;
+		}
+		50% {
+			background-position: 100% 50%;
+		}
+		100% {
+			background-position: 0% 50%;
+		}
 	}
 </style>
