@@ -36,6 +36,45 @@
 			content: ''
 		}
 	];
+	let file: File | null = null;
+
+	function handleDragOver(e: DragEvent) {
+		e.preventDefault();
+	}
+
+	async function handleDrop(e: DragEvent) {
+		let imageDataUrl = null;
+		e.preventDefault();
+		if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+			file = e.dataTransfer.files[0];
+			const reader = new FileReader();
+			reader.onload = () => {
+				imageDataUrl = reader.result as string;
+				// 这里可以根据需要处理imageDataUrl，例如添加到消息中
+				console.log('Image uploaded:', imageDataUrl);
+				const content = [
+					{
+						type: 'text',
+						text: '解析图中的文字'
+					},
+					{
+						type: 'image_url',
+						image_url: {
+							url: imageDataUrl
+						}
+					}
+				];
+				imageMessage = {
+					role: 'user',
+					content: content
+				};
+				console.log('imageMessage:', imageMessage);
+				// 将imageMessage添加到messages中
+				messages.push(imageMessage);
+			};
+			reader.readAsDataURL(file);
+		}
+	}
 
 	const scrollToBottom = () => {
 		const element = mode === 'chat' ? messagesContainerElement : textCompletionAreaElement;
@@ -239,7 +278,7 @@
 
 <svelte:head>
 	<title>
-		{$i18n.t('文书生成')} 
+		{$i18n.t('Agent 智能体')}
 	</title>
 </svelte:head>
 
@@ -249,7 +288,7 @@
 			<div class="flex flex-col justify-between mb-2.5 gap-1">
 				<div class="flex justify-between items-center gap-2">
 					<div class=" text-lg font-semibold self-center flex">
-						{$i18n.t('文书生成')}
+						{$i18n.t('Agent 智能体')}
 						<span class=" text-xs text-gray-500 self-center ml-1">{$i18n.t('(Beta)')}</span>
 					</div>
 
@@ -355,7 +394,7 @@
 				id="messages-container"
 				bind:this={messagesContainerElement}
 			>
-				<div class=" h-full w-full flex flex-col">
+				<div class=" h-full w-full flex flex-col" on:dragover={handleDragOver} on:drop={handleDrop}>
 					<div class="flex-1 p-1">
 						{#if mode === 'complete'}
 							<textarea

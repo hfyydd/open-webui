@@ -10,7 +10,7 @@
 
 <svelte:head>
 	<title>
-		{$i18n.t('Workspace')} | {$WEBUI_NAME}
+		{$i18n.t('Workspace')} 
 	</title>
 </svelte:head>
 
@@ -30,7 +30,7 @@
 					</div>
 				</button>
 			</div>
-			<div class="flex items-center text-xl font-semibold">{$i18n.t('Workspace')}</div>
+			<div class="flex items-center text-xl font-semibold">{$i18n.t('实验室')}</div>
 		</div>
 	</div>
 
@@ -38,14 +38,14 @@
 		<div
 			class="flex scrollbar-none overflow-x-auto w-fit text-center text-sm font-medium rounded-xl bg-transparent/10 p-1"
 		>
-			<a
+			<!-- <a
 				class="min-w-fit rounded-lg p-1.5 px-3 {$page.url.pathname.includes('/workspace/models')
 					? 'bg-gray-50 dark:bg-gray-850'
 					: ''} transition"
 				href="/workspace/models">{$i18n.t('Models')}</a
-			>
+			> -->
 
-			<a
+			<!-- <a
 				class="min-w-fit rounded-lg p-1.5 px-3 {$page.url.pathname.includes('/workspace/prompts')
 					? 'bg-gray-50 dark:bg-gray-850'
 					: ''} transition"
@@ -59,13 +59,19 @@
 				href="/workspace/documents"
 			>
 				{$i18n.t('Documents')}
-			</a>
+			</a> -->
 
 			<a
-				class="min-w-fit rounded-lg p-1.5 px-3 {$page.url.pathname.includes('/workspace/playground')
+				class="min-w-fit rounded-lg p-1.5 px-3 {$page.url.pathname.startsWith('/workspace/playground') && !$page.url.pathname.startsWith('/workspace/playground2')
 					? 'bg-gray-50 dark:bg-gray-850'
 					: ''} transition"
-				href="/workspace/playground">{$i18n.t('Playground')}</a
+				href="/workspace/playground">{$i18n.t('文书生成')}</a
+			>
+			<a
+				class="min-w-fit rounded-lg p-1.5 px-3 {$page.url.pathname.includes('/workspace/playground2')
+					? 'bg-gray-50 dark:bg-gray-850'
+					: ''} transition"
+				href="/workspace/playground2">{$i18n.t('Agent智能体')}</a
 			>
 		</div>
 	</div>

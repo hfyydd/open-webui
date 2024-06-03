@@ -50,9 +50,9 @@
 								if (text === 'AI法律专家') {
 									goto('/');
 								} else if (text === '文书生成') {
-									goto('/playground');
+									goto('/workspace/playground');
 								} else {
-									goto('/playground2');
+									goto('/workspace/playground2');
 								}
 							}}
 						>
