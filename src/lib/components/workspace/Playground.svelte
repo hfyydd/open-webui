@@ -10,7 +10,7 @@
 
 	import { generateChatCompletion } from '$lib/apis/ollama';
 	import { generateOpenAIChatCompletion } from '$lib/apis/openai';
-
+	import { createOpenAITextStream } from '$lib/apis/streaming';
 	import { splitStream } from '$lib/utils';
 	import ChatCompletion from '$lib/components/playground/ChatCompletion.svelte';
 	import Selector from '$lib/components/chat/ModelSelector/Selector.svelte';
@@ -150,59 +150,96 @@
 		await tick();
 		const textareaElement = document.getElementById(`assistant-${messages.length - 1}-textarea`);
 
-		if (res && res.ok) {
-			const reader = res.body
-				.pipeThrough(new TextDecoderStream())
-				.pipeThrough(splitStream('\n'))
-				.getReader();
+		// if (res && res.ok) {
+		// 	const reader = res.body
+		// 		.pipeThrough(new TextDecoderStream())
+		// 		.pipeThrough(splitStream('\n'))
+		// 		.getReader();
 
-			while (true) {
-				const { value, done } = await reader.read();
+		// 	while (true) {
+		// 		const { value, done } = await reader.read();
+		// 		if (done || stopResponseFlag) {
+		// 			if (stopResponseFlag) {
+		// 				controller.abort('User: Stop Response');
+		// 			}
+		// 			break;
+		// 		}
+
+		// 		try {
+		// 			let lines = value.split('\n');
+
+		// 			for (const line of lines) {
+		// 				if (line !== '') {
+		// 					console.log(line);
+		// 					if (line === 'data: [DONE]') {
+		// 						// responseMessage.done = true;
+		// 						messages = messages;
+		// 					} else {
+		// 						let data = JSON.parse(line.replace(/^data: /, ''));
+		// 						console.log(data);
+
+		// 						if ('request_id' in data) {
+		// 							currentRequestId = data.request_id;
+		// 						} else {
+		// 							if (responseMessage.content == '' && data.choices[0].delta.content == '\n') {
+		// 								continue;
+		// 							} else {
+		// 								textareaElement.style.height = textareaElement.scrollHeight + 'px';
+
+		// 								responseMessage.content += data.choices[0].delta.content ?? '';
+		// 								messages = messages;
+
+		// 								textareaElement.style.height = textareaElement.scrollHeight + 'px';
+
+		// 								await tick();
+		// 							}
+		// 						}
+		// 					}
+		// 				}
+		// 			}
+		// 		} catch (error) {
+		// 			console.log(error);
+		// 		}
+
+		// 		scrollToBottom();
+		// 	}
+		// }
+		if (res && res.ok && res.body) {
+			const textStream = await createOpenAITextStream(res.body, $settings.splitLargeChunks);
+
+			for await (const update of textStream) {
+				const { value, done, citations, error } = update;
 				if (done || stopResponseFlag) {
+					responseMessage.done = true;
+					messages = messages;
+
 					if (stopResponseFlag) {
 						controller.abort('User: Stop Response');
 					}
+
 					break;
 				}
-
 				try {
-					let lines = value.split('\n');
+					console.log(value);
 
-					for (const line of lines) {
-						if (line !== '') {
-							console.log(line);
-							if (line === 'data: [DONE]') {
-								// responseMessage.done = true;
-								messages = messages;
-							} else {
-								let data = JSON.parse(line.replace(/^data: /, ''));
-								console.log(data);
+					if (responseMessage.content == '' && value == '\n') {
+						continue;
+					} else {
+						textareaElement.style.height = textareaElement.scrollHeight + 'px';
 
-								if ('request_id' in data) {
-									currentRequestId = data.request_id;
-								} else {
-									if (responseMessage.content == '' && data.choices[0].delta.content == '\n') {
-										continue;
-									} else {
-										textareaElement.style.height = textareaElement.scrollHeight + 'px';
+						responseMessage.content += value ?? '';
+						messages = messages;
 
-										responseMessage.content += data.choices[0].delta.content ?? '';
-										messages = messages;
+						textareaElement.style.height = textareaElement.scrollHeight + 'px';
 
-										textareaElement.style.height = textareaElement.scrollHeight + 'px';
-
-										await tick();
-									}
-								}
-							}
-						}
+						await tick();
 					}
 				} catch (error) {
 					console.log(error);
 				}
-
-				scrollToBottom();
 			}
+		} else {
+			//await handleOpenAIError(null, res, model, responseMessage);
 		}
 	};
 
@@ -218,6 +255,32 @@
 
 			loading = false;
 			stopResponseFlag = false;
+		}
+	};
+
+	import axios from 'axios';
+
+	const downloadHandler = async () => {
+		const content = messages[1].content;
+		console.log(content);
+		try {
+			const response = await axios.post(
+				'http://localhost:8000/generate_task',
+				{ value: content },
+				{ responseType: 'blob' }
+			);
+			const url = window.URL.createObjectURL(
+				new Blob([response.data], {
+					type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document;charset=utf-8'
+				})
+			);
+			const link = document.createElement('a');
+			link.href = url;
+			link.setAttribute('download', 'modified_template.docx'); // or any other filename you want
+			document.body.appendChild(link);
+			link.click();
+		} catch (error) {
+			console.error(error);
 		}
 	};
 
@@ -239,7 +302,7 @@
 
 <svelte:head>
 	<title>
-		{$i18n.t('文书生成')} 
+		{$i18n.t('文书生成')}
 	</title>
 </svelte:head>
 
@@ -381,6 +444,14 @@
 						}}
 					>
 						{$i18n.t('Submit')}
+					</button>
+					<button
+						class="px-3 py-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-gray-50 transition rounded-lg"
+						on:click={() => {
+							downloadHandler();
+						}}
+					>
+						{$i18n.t('下载')}
 					</button>
 				{:else}
 					<button

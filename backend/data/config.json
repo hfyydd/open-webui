@@ -40,12 +40,14 @@
 	},
 	"openai": {
 		"api_base_urls": [
-			"http://10.192.128.18:6789/v1",
-			"http://127.0.0.1:8100/v2"
+			"http://127.0.0.1:8100/v2",
+			"https://api.deepseek.com/v1",
+			"http://127.0.0.1:3456/v1"
 		],
 		"api_keys": [
 			"123456",
-			"123456"
+			"sk-e5d0004b2570463a9ab83516a34a0301",
+			"app-AOVWF7G5jvpmVV7Kvbr5gzFa"
 		]
 	}
 }
