@@ -80,8 +80,6 @@
 					if (stopResponseFlag) {
 						controller.abort('User: Stop Response');
 					}
-
-					currentRequestId = null;
 					break;
 				}
 
@@ -97,11 +95,7 @@
 								let data = JSON.parse(line.replace(/^data: /, ''));
 								console.log(data);
 
-								if ('request_id' in data) {
-									currentRequestId = data.request_id;
-								} else {
-									text += data.choices[0].delta.content ?? '';
-								}
+								text += data.choices[0].delta.content ?? '';
 							}
 						}
 					}
@@ -222,6 +216,7 @@
 				try {
 					console.log(value);
 
+
 					if (responseMessage.content == '' && value == '\n') {
 						continue;
 					} else {
@@ -233,6 +228,7 @@
 						textareaElement.style.height = textareaElement.scrollHeight + 'px';
 
 						await tick();
+
 					}
 				} catch (error) {
 					console.log(error);
@@ -303,6 +299,7 @@
 <svelte:head>
 	<title>
 		{$i18n.t('文书生成')}
+
 	</title>
 </svelte:head>
 

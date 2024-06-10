@@ -10,7 +10,9 @@
 
 	import { generateChatCompletion } from '$lib/apis/ollama';
 	import { generateOpenAIChatCompletion } from '$lib/apis/openai';
+
 	import { createOpenAITextStream } from '$lib/apis/streaming';
+
 	import { splitStream } from '$lib/utils';
 	import ChatCompletion from '$lib/components/playground/ChatCompletion.svelte';
 	import Selector from '$lib/components/chat/ModelSelector/Selector.svelte';
@@ -272,6 +274,7 @@
 						textareaElement.style.height = textareaElement.scrollHeight + 'px';
 
 						await tick();
+
 					}
 				} catch (error) {
 					console.log(error);
@@ -279,6 +282,7 @@
 			}
 		} else {
 			//await handleOpenAIError(null, res, model, responseMessage);
+
 		}
 	};
 
