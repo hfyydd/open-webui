@@ -9,6 +9,7 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 import os, shutil, logging, re
+from datetime import datetime
 
 from pathlib import Path
 from typing import List, Union, Sequence
@@ -30,6 +31,7 @@ from langchain_community.document_loaders import (
     UnstructuredExcelLoader,
     UnstructuredPowerPointLoader,
     YoutubeLoader,
+    OutlookMessageLoader,
 )
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
@@ -78,6 +80,7 @@ from utils.misc import (
 from utils.utils import get_current_user, get_admin_user
 
 from config import (
+    AppConfig,
     ENV,
     SRC_LOG_LEVELS,
     UPLOAD_DIR,
@@ -114,7 +117,7 @@ from config import (
     SERPER_API_KEY,
     RAG_WEB_SEARCH_RESULT_COUNT,
     RAG_WEB_SEARCH_CONCURRENT_REQUESTS,
-    AppConfig,
+    RAG_EMBEDDING_OPENAI_BATCH_SIZE,
 )
 
 from constants import ERROR_MESSAGES
@@ -139,6 +142,7 @@ app.state.config.CHUNK_OVERLAP = CHUNK_OVERLAP
 
 app.state.config.RAG_EMBEDDING_ENGINE = RAG_EMBEDDING_ENGINE
 app.state.config.RAG_EMBEDDING_MODEL = RAG_EMBEDDING_MODEL
+app.state.config.RAG_EMBEDDING_OPENAI_BATCH_SIZE = RAG_EMBEDDING_OPENAI_BATCH_SIZE
 app.state.config.RAG_RERANKING_MODEL = RAG_RERANKING_MODEL
 app.state.config.RAG_TEMPLATE = RAG_TEMPLATE
 
@@ -212,6 +216,7 @@ app.state.EMBEDDING_FUNCTION = get_embedding_function(
     app.state.sentence_transformer_ef,
     app.state.config.OPENAI_API_KEY,
     app.state.config.OPENAI_API_BASE_URL,
+    app.state.config.RAG_EMBEDDING_OPENAI_BATCH_SIZE,
 )
 
 origins = ["*"]
@@ -248,6 +253,7 @@ async def get_status():
         "embedding_engine": app.state.config.RAG_EMBEDDING_ENGINE,
         "embedding_model": app.state.config.RAG_EMBEDDING_MODEL,
         "reranking_model": app.state.config.RAG_RERANKING_MODEL,
+        "openai_batch_size": app.state.config.RAG_EMBEDDING_OPENAI_BATCH_SIZE,
     }
 
 
@@ -260,6 +266,7 @@ async def get_embedding_config(user=Depends(get_admin_user)):
         "openai_config": {
             "url": app.state.config.OPENAI_API_BASE_URL,
             "key": app.state.config.OPENAI_API_KEY,
+            "batch_size": app.state.config.RAG_EMBEDDING_OPENAI_BATCH_SIZE,
         },
     }
 
@@ -275,6 +282,7 @@ async def get_reraanking_config(user=Depends(get_admin_user)):
 class OpenAIConfigForm(BaseModel):
     url: str
     key: str
+    batch_size: Optional[int] = None
 
 
 class EmbeddingModelUpdateForm(BaseModel):
@@ -295,9 +303,14 @@ async def update_embedding_config(
         app.state.config.RAG_EMBEDDING_MODEL = form_data.embedding_model
 
         if app.state.config.RAG_EMBEDDING_ENGINE in ["ollama", "openai"]:
-            if form_data.openai_config != None:
+            if form_data.openai_config is not None:
                 app.state.config.OPENAI_API_BASE_URL = form_data.openai_config.url
                 app.state.config.OPENAI_API_KEY = form_data.openai_config.key
+                app.state.config.RAG_EMBEDDING_OPENAI_BATCH_SIZE = (
+                    form_data.openai_config.batch_size
+                    if form_data.openai_config.batch_size
+                    else 1
+                )
 
         update_embedding_model(app.state.config.RAG_EMBEDDING_MODEL)
 
@@ -307,6 +320,7 @@ async def update_embedding_config(
             app.state.sentence_transformer_ef,
             app.state.config.OPENAI_API_KEY,
             app.state.config.OPENAI_API_BASE_URL,
+            app.state.config.RAG_EMBEDDING_OPENAI_BATCH_SIZE,
         )
 
         return {
@@ -316,6 +330,7 @@ async def update_embedding_config(
             "openai_config": {
                 "url": app.state.config.OPENAI_API_BASE_URL,
                 "key": app.state.config.OPENAI_API_KEY,
+                "batch_size": app.state.config.RAG_EMBEDDING_OPENAI_BATCH_SIZE,
             },
         }
     except Exception as e:
@@ -866,6 +881,13 @@ def store_docs_in_vector_db(docs, collection_name, overwrite: bool = False) -> b
     texts = [doc.page_content for doc in docs]
     metadatas = [doc.metadata for doc in docs]
 
+    # ChromaDB does not like datetime formats
+    # for meta-data so convert them to string.
+    for metadata in metadatas:
+        for key, value in metadata.items():
+            if isinstance(value, datetime):
+                metadata[key] = str(value)
+
     try:
         if overwrite:
             for collection in CHROMA_CLIENT.list_collections():
@@ -881,6 +903,7 @@ def store_docs_in_vector_db(docs, collection_name, overwrite: bool = False) -> b
             app.state.sentence_transformer_ef,
             app.state.config.OPENAI_API_KEY,
             app.state.config.OPENAI_API_BASE_URL,
+            app.state.config.RAG_EMBEDDING_OPENAI_BATCH_SIZE,
         )
 
         embedding_texts = list(map(lambda x: x.replace("\n", " "), texts))
@@ -951,6 +974,7 @@ def get_loader(filename: str, file_content_type: str, file_path: str):
         "swift",
         "vue",
         "svelte",
+        "msg",
     ]
 
     if file_ext == "pdf":
@@ -985,6 +1009,8 @@ def get_loader(filename: str, file_content_type: str, file_path: str):
         "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     ] or file_ext in ["ppt", "pptx"]:
         loader = UnstructuredPowerPointLoader(file_path)
+    elif file_ext == "msg":
+        loader = OutlookMessageLoader(file_path)
     elif file_ext in known_source_ext or (
         file_content_type and file_content_type.find("text/") >= 0
     ):
@@ -1148,6 +1174,30 @@ def scan_docs_dir(user=Depends(get_admin_user)):
 @app.get("/reset/db")
 def reset_vector_db(user=Depends(get_admin_user)):
     CHROMA_CLIENT.reset()
+
+
+@app.get("/reset/uploads")
+def reset_upload_dir(user=Depends(get_admin_user)) -> bool:
+    folder = f"{UPLOAD_DIR}"
+    try:
+        # Check if the directory exists
+        if os.path.exists(folder):
+            # Iterate over all the files and directories in the specified directory
+            for filename in os.listdir(folder):
+                file_path = os.path.join(folder, filename)
+                try:
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)  # Remove the file or link
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)  # Remove the directory
+                except Exception as e:
+                    print(f"Failed to delete {file_path}. Reason: {e}")
+        else:
+            print(f"The directory {folder} does not exist")
+    except Exception as e:
+        print(f"Failed to process the directory {folder}. Reason: {e}")
+
+    return True
 
 
 @app.get("/reset")
