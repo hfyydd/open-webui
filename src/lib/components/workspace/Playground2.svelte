@@ -11,6 +11,8 @@
 	import { generateChatCompletion } from '$lib/apis/ollama';
 	import { generateOpenAIChatCompletion } from '$lib/apis/openai';
 
+	import { createOpenAITextStream } from '$lib/apis/streaming';
+
 	import { splitStream } from '$lib/utils';
 	import ChatCompletion from '$lib/components/playground/ChatCompletion.svelte';
 	import Selector from '$lib/components/chat/ModelSelector/Selector.svelte';
@@ -189,59 +191,98 @@
 		await tick();
 		const textareaElement = document.getElementById(`assistant-${messages.length - 1}-textarea`);
 
-		if (res && res.ok) {
-			const reader = res.body
-				.pipeThrough(new TextDecoderStream())
-				.pipeThrough(splitStream('\n'))
-				.getReader();
+		// if (res && res.ok) {
+		// 	const reader = res.body
+		// 		.pipeThrough(new TextDecoderStream())
+		// 		.pipeThrough(splitStream('\n'))
+		// 		.getReader();
 
-			while (true) {
-				const { value, done } = await reader.read();
+		// 	while (true) {
+		// 		const { value, done } = await reader.read();
+		// 		if (done || stopResponseFlag) {
+		// 			if (stopResponseFlag) {
+		// 				controller.abort('User: Stop Response');
+		// 			}
+		// 			break;
+		// 		}
+
+		// 		try {
+		// 			let lines = value.split('\n');
+
+		// 			for (const line of lines) {
+		// 				if (line !== '') {
+		// 					console.log(line);
+		// 					if (line === 'data: [DONE]') {
+		// 						// responseMessage.done = true;
+		// 						messages = messages;
+		// 					} else {
+		// 						let data = JSON.parse(line.replace(/^data: /, ''));
+		// 						console.log(data);
+
+		// 						if ('request_id' in data) {
+		// 							currentRequestId = data.request_id;
+		// 						} else {
+		// 							if (responseMessage.content == '' && data.choices[0].delta.content == '\n') {
+		// 								continue;
+		// 							} else {
+		// 								textareaElement.style.height = textareaElement.scrollHeight + 'px';
+
+		// 								responseMessage.content += data.choices[0].delta.content ?? '';
+		// 								messages = messages;
+
+		// 								textareaElement.style.height = textareaElement.scrollHeight + 'px';
+
+		// 								await tick();
+		// 							}
+		// 						}
+		// 					}
+		// 				}
+		// 			}
+		// 		} catch (error) {
+		// 			console.log(error);
+		// 		}
+
+		// 		scrollToBottom();
+		// 	}
+		// }
+		if (res && res.ok && res.body) {
+			const textStream = await createOpenAITextStream(res.body, $settings.splitLargeChunks);
+
+			for await (const update of textStream) {
+				const { value, done, citations, error } = update;
 				if (done || stopResponseFlag) {
+					responseMessage.done = true;
+					messages = messages;
+
 					if (stopResponseFlag) {
 						controller.abort('User: Stop Response');
 					}
+
 					break;
 				}
-
 				try {
-					let lines = value.split('\n');
+					console.log(value);
 
-					for (const line of lines) {
-						if (line !== '') {
-							console.log(line);
-							if (line === 'data: [DONE]') {
-								// responseMessage.done = true;
-								messages = messages;
-							} else {
-								let data = JSON.parse(line.replace(/^data: /, ''));
-								console.log(data);
+					if (responseMessage.content == '' && value == '\n') {
+						continue;
+					} else {
+						textareaElement.style.height = textareaElement.scrollHeight + 'px';
 
-								if ('request_id' in data) {
-									currentRequestId = data.request_id;
-								} else {
-									if (responseMessage.content == '' && data.choices[0].delta.content == '\n') {
-										continue;
-									} else {
-										textareaElement.style.height = textareaElement.scrollHeight + 'px';
+						responseMessage.content += value ?? '';
+						messages = messages;
 
-										responseMessage.content += data.choices[0].delta.content ?? '';
-										messages = messages;
+						textareaElement.style.height = textareaElement.scrollHeight + 'px';
 
-										textareaElement.style.height = textareaElement.scrollHeight + 'px';
+						await tick();
 
-										await tick();
-									}
-								}
-							}
-						}
 					}
 				} catch (error) {
 					console.log(error);
 				}
-
-				scrollToBottom();
 			}
+		} else {
+			//await handleOpenAIError(null, res, model, responseMessage);
+
 		}
 	};
 

@@ -51,6 +51,7 @@
 		"@pyscript/core": "^0.4.32",
 		"@sveltejs/adapter-node": "^1.3.1",
 		"async": "^3.2.5",
+		"axios": "^1.7.2",
 		"bits-ui": "^0.19.7",
 		"dayjs": "^1.11.10",
 		"eventsource-parser": "^1.1.2",
